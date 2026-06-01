@@ -1,0 +1,1799 @@
+
+
+/* 
+-- 29th May 2026 -- 
+-- My prompt to ChatGPT -- 
+I need to create a database in MySQL. 
+Its a new product of say, a beverage vending machine. 
+Please give me create table script for below tables - 
+	1. master_user. It can have columns like ID, first_name, last_name, middle_name, date_of_birth, email, address etc etc. 
+	2. master_beverage. It can have columns like ID, beverage_name, beverage_type, beverage_default quantity etc etc. 
+		Example - tea, masala tea, coffee, cold coffee, shake, frappe, elaichi tea, ginger tea, smoothie, juice etc 
+	3. master_ingredient - Example elaichi, ginger, sugar, jaggery, milk, water, honey, lemon 
+	4. master_ingredient_subtype - Example powdered, cubes, white sugar, brown sugar, sugar free, mishri, thread, crystal etc 
+	5. master_preparation_method - Example quick, 1 min boil, chilled, 5 min boil, blended, crushed, fresh, aged etc. 
+	
+Then create mapping tables with foreign keys example map_user_beverage, map_beverage_ingredient, map_ingredient_ingredient_subtype, map_beverage_preparation_method etc. 
+Can you give me all create table queries, with foreign key, primary key, other constraints, with COMMENTs at column and table level??
+*/
+
+
+
+
+
+-- Reply from ChatGPT -- 
+
+CREATE DATABASE IF NOT EXISTS beverage_vending_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE beverage_vending_db;
+
+-- =========================================================
+-- 1. MASTER USER
+-- =========================================================
+
+CREATE TABLE master_user (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the user',
+
+    first_name VARCHAR(100) NOT NULL COMMENT 'User first name',
+    middle_name VARCHAR(100) NULL COMMENT 'User middle name',
+    last_name VARCHAR(100) NOT NULL COMMENT 'User last name',
+    date_of_birth DATE NULL COMMENT 'User date of birth',
+
+    email VARCHAR(255) NOT NULL COMMENT 'User email address, must be unique',
+    mobile_number VARCHAR(20) NULL COMMENT 'User mobile or contact number',
+
+    address_line1 VARCHAR(255) NULL COMMENT 'Primary address line',
+    address_line2 VARCHAR(255) NULL COMMENT 'Secondary address line',
+    city VARCHAR(100) NULL COMMENT 'City name',
+    state VARCHAR(100) NULL COMMENT 'State or province name',
+    postal_code VARCHAR(20) NULL COMMENT 'Postal or ZIP code',
+    country VARCHAR(100) NULL COMMENT 'Country name',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether user is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_master_user_email UNIQUE (email),
+    CONSTRAINT chk_master_user_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Master table containing application users or vending machine customers';
+
+
+-- =========================================================
+-- 2. MASTER BEVERAGE
+-- =========================================================
+
+CREATE TABLE master_beverage (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the beverage',
+
+    beverage_name VARCHAR(150) NOT NULL COMMENT 'Name of the beverage, for example Tea, Masala Tea, Coffee, Cold Coffee',
+    beverage_type VARCHAR(100) NOT NULL COMMENT 'Type or category of beverage, for example Tea, Coffee, Shake, Juice, Smoothie',
+    beverage_description VARCHAR(500) NULL COMMENT 'Short description of the beverage',
+
+    default_quantity DECIMAL(10,3) NOT NULL COMMENT 'Default serving quantity of the beverage',
+    default_quantity_unit VARCHAR(30) NOT NULL DEFAULT 'ml' COMMENT 'Default serving quantity unit, for example ml, cup, glass',
+
+    default_temperature VARCHAR(30) NULL COMMENT 'Default temperature type, for example Hot, Cold, Chilled, Room Temperature',
+    is_customizable TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether beverage can be customized',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether beverage is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_master_beverage_name UNIQUE (beverage_name),
+    CONSTRAINT chk_master_beverage_default_quantity CHECK (default_quantity > 0),
+    CONSTRAINT chk_master_beverage_is_customizable CHECK (is_customizable IN (0, 1)),
+    CONSTRAINT chk_master_beverage_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Master table containing beverages such as tea, coffee, shake, frappe, juice and smoothie';
+
+
+-- =========================================================
+-- 3. MASTER INGREDIENT
+-- =========================================================
+
+CREATE TABLE master_ingredient (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the ingredient',
+
+    ingredient_name VARCHAR(150) NOT NULL COMMENT 'Name of the ingredient, for example Elaichi, Ginger, Sugar, Milk, Water',
+    ingredient_category VARCHAR(100) NULL COMMENT 'Ingredient category, for example Spice, Sweetener, Liquid, Fruit, Dairy',
+    ingredient_description VARCHAR(500) NULL COMMENT 'Short description of the ingredient',
+
+    default_quantity_unit VARCHAR(30) NULL COMMENT 'Default measurement unit for the ingredient, for example gram, ml, spoon, cube',
+    is_allergen TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Flag to indicate whether ingredient is a known allergen',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether ingredient is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_master_ingredient_name UNIQUE (ingredient_name),
+    CONSTRAINT chk_master_ingredient_is_allergen CHECK (is_allergen IN (0, 1)),
+    CONSTRAINT chk_master_ingredient_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Master table containing ingredients such as elaichi, ginger, sugar, jaggery, milk, water, honey and lemon';
+
+
+-- =========================================================
+-- 4. MASTER INGREDIENT SUBTYPE
+-- =========================================================
+
+CREATE TABLE master_ingredient_subtype (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the ingredient subtype',
+
+    subtype_name VARCHAR(150) NOT NULL COMMENT 'Subtype name, for example Powdered, Cubes, White Sugar, Brown Sugar, Sugar Free',
+    subtype_description VARCHAR(500) NULL COMMENT 'Short description of the ingredient subtype',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether ingredient subtype is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_master_ingredient_subtype_name UNIQUE (subtype_name),
+    CONSTRAINT chk_master_ingredient_subtype_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Master table containing ingredient subtypes such as powdered, cubes, white sugar, brown sugar, mishri and crystal';
+
+
+-- =========================================================
+-- 5. MASTER PREPARATION METHOD
+-- =========================================================
+
+CREATE TABLE master_preparation_method (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the preparation method',
+
+    method_name VARCHAR(150) NOT NULL COMMENT 'Preparation method name, for example Quick, 1 Min Boil, Chilled, Blended, Crushed',
+    method_description VARCHAR(500) NULL COMMENT 'Short description of the preparation method',
+
+    duration_seconds INT UNSIGNED NULL COMMENT 'Approximate preparation duration in seconds',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether preparation method is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_master_preparation_method_name UNIQUE (method_name),
+    CONSTRAINT chk_master_preparation_method_duration CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+    CONSTRAINT chk_master_preparation_method_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Master table containing preparation methods such as quick, boil, chilled, blended, crushed, fresh and aged';
+
+
+-- =========================================================
+-- 6. MAP USER BEVERAGE
+-- =========================================================
+
+CREATE TABLE map_user_beverage (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the user-beverage mapping',
+
+    user_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_user',
+    beverage_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_beverage',
+
+    preferred_quantity DECIMAL(10,3) NULL COMMENT 'User preferred beverage quantity',
+    preferred_quantity_unit VARCHAR(30) NULL COMMENT 'User preferred beverage quantity unit',
+    is_favourite TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Flag to indicate whether beverage is marked as favourite by user',
+    preference_notes VARCHAR(500) NULL COMMENT 'User-specific beverage preference notes',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether this user-beverage preference is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_map_user_beverage UNIQUE (user_id, beverage_id),
+
+    CONSTRAINT fk_map_user_beverage_user
+        FOREIGN KEY (user_id)
+        REFERENCES master_user (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_user_beverage_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_map_user_beverage_preferred_quantity CHECK (
+        preferred_quantity IS NULL OR preferred_quantity > 0
+    ),
+    CONSTRAINT chk_map_user_beverage_is_favourite CHECK (is_favourite IN (0, 1)),
+    CONSTRAINT chk_map_user_beverage_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Mapping table storing user beverage preferences and favourites';
+
+
+-- =========================================================
+-- 7. MAP BEVERAGE INGREDIENT
+-- =========================================================
+
+CREATE TABLE map_beverage_ingredient (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the beverage-ingredient mapping',
+
+    beverage_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_beverage',
+    ingredient_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_ingredient',
+
+    ingredient_quantity DECIMAL(10,3) NULL COMMENT 'Default quantity of ingredient used in the beverage',
+    ingredient_quantity_unit VARCHAR(30) NULL COMMENT 'Quantity unit of ingredient, for example gram, ml, spoon, cube',
+    preparation_sequence INT UNSIGNED NULL COMMENT 'Sequence in which the ingredient is added during preparation',
+
+    is_mandatory TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether ingredient is mandatory for beverage',
+    is_default TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether ingredient is part of default recipe',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether this beverage-ingredient mapping is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_map_beverage_ingredient UNIQUE (beverage_id, ingredient_id),
+
+    CONSTRAINT fk_map_beverage_ingredient_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_beverage_ingredient_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_map_beverage_ingredient_quantity CHECK (
+        ingredient_quantity IS NULL OR ingredient_quantity > 0
+    ),
+    CONSTRAINT chk_map_beverage_ingredient_is_mandatory CHECK (is_mandatory IN (0, 1)),
+    CONSTRAINT chk_map_beverage_ingredient_is_default CHECK (is_default IN (0, 1)),
+    CONSTRAINT chk_map_beverage_ingredient_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Mapping table defining which ingredients are used in each beverage recipe';
+
+
+-- =========================================================
+-- 8. MAP INGREDIENT INGREDIENT SUBTYPE
+-- =========================================================
+
+CREATE TABLE map_ingredient_ingredient_subtype (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the ingredient-subtype mapping',
+
+    ingredient_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_ingredient',
+    ingredient_subtype_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_ingredient_subtype',
+
+    is_default TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Flag to indicate whether this subtype is default for the ingredient',
+
+    default_for_ingredient_id BIGINT UNSIGNED
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN is_default = 1 THEN ingredient_id
+                ELSE NULL
+            END
+        ) STORED
+        COMMENT 'Generated helper column to allow only one default subtype per ingredient',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether this ingredient-subtype mapping is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_map_ingredient_subtype UNIQUE (ingredient_id, ingredient_subtype_id),
+    CONSTRAINT uk_map_ingredient_one_default_subtype UNIQUE (default_for_ingredient_id),
+
+    CONSTRAINT fk_map_ingredient_subtype_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_ingredient_subtype_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_map_ingredient_subtype_is_default CHECK (is_default IN (0, 1)),
+    CONSTRAINT chk_map_ingredient_subtype_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Mapping table defining valid subtypes for each ingredient';
+
+
+-- =========================================================
+-- 9. MAP BEVERAGE PREPARATION METHOD
+-- =========================================================
+
+CREATE TABLE map_beverage_preparation_method (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of the beverage-preparation-method mapping',
+
+    beverage_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_beverage',
+    preparation_method_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_preparation_method',
+
+    preparation_sequence INT UNSIGNED NULL COMMENT 'Sequence number when multiple preparation methods are involved',
+    is_default TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Flag to indicate whether this is the default preparation method for the beverage',
+
+    default_for_beverage_id BIGINT UNSIGNED
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN is_default = 1 THEN beverage_id
+                ELSE NULL
+            END
+        ) STORED
+        COMMENT 'Generated helper column to allow only one default preparation method per beverage',
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether this beverage-preparation-method mapping is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_map_beverage_preparation_method UNIQUE (beverage_id, preparation_method_id),
+    CONSTRAINT uk_map_beverage_one_default_method UNIQUE (default_for_beverage_id),
+
+    CONSTRAINT fk_map_beverage_preparation_method_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_beverage_preparation_method_method
+        FOREIGN KEY (preparation_method_id)
+        REFERENCES master_preparation_method (id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_map_beverage_preparation_method_is_default CHECK (is_default IN (0, 1)),
+    CONSTRAINT chk_map_beverage_preparation_method_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Mapping table defining available preparation methods for each beverage';
+
+
+-- =========================================================
+-- 10. OPTIONAL: USER BEVERAGE INGREDIENT CUSTOMIZATION
+-- =========================================================
+
+CREATE TABLE map_user_beverage_ingredient (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Primary key of user beverage ingredient customization',
+
+    user_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_user',
+    beverage_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_beverage',
+    ingredient_id BIGINT UNSIGNED NOT NULL COMMENT 'Foreign key reference to master_ingredient',
+    ingredient_subtype_id BIGINT UNSIGNED NULL COMMENT 'Optional foreign key reference to master_ingredient_subtype',
+
+    custom_quantity DECIMAL(10,3) NULL COMMENT 'User custom ingredient quantity',
+    custom_quantity_unit VARCHAR(30) NULL COMMENT 'User custom ingredient quantity unit',
+
+    is_removed TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Flag to indicate whether user wants this ingredient removed',
+    is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag to indicate whether this customization is active',
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record last update timestamp',
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uk_map_user_beverage_ingredient UNIQUE (
+        user_id,
+        beverage_id,
+        ingredient_id,
+        ingredient_subtype_id
+    ),
+
+    CONSTRAINT fk_map_user_beverage_ingredient_user
+        FOREIGN KEY (user_id)
+        REFERENCES master_user (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_user_beverage_ingredient_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_map_user_beverage_ingredient_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_map_user_beverage_ingredient_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT chk_map_user_beverage_ingredient_quantity CHECK (
+        custom_quantity IS NULL OR custom_quantity > 0
+    ),
+    CONSTRAINT chk_map_user_beverage_ingredient_is_removed CHECK (is_removed IN (0, 1)),
+    CONSTRAINT chk_map_user_beverage_ingredient_is_active CHECK (is_active IN (0, 1))
+)
+ENGINE = InnoDB
+COMMENT = 'Optional mapping table storing user-specific customization for beverage ingredients';
+
+
+
+
+
+
+
+
+
+/* 
+-- 30-May-2026 -- 
+-- Prompt 2 -- 
+Thanks for the scripts. Few improvements - 
+1. Please add more detailed comments everywhere.
+2. instead of created_at and updated_at, use below as audit columns - 
+created_by_id INT NOT NULL -- Foreign Key to master_user(id)
+created_on DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP 
+updated_by_id INT   -- Foreign Key to master_user(id) -- Can be null for first time insert
+updated_on DATETIME ON UPDATE CURRENT_TIMESTAMP -- Can be null for first time insert
+3. Append PRIMARY KEY within Column itself like   id                      BIGINT           NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each hierarchy row',
+4. Remove ON DELETE and ON UPDATE. I dont want change in one table, to automatically change another table. Else future developers will get confused.
+5. Dont restrict is_active, is_default etc to 0,1 only. TINYINT is fine. But I may scale it to 0, 1, 2, 3 also in future. Yes, keep them NOT NULL, or DEFAULT 0 or 1.
+6. Add UNIQUE constraint, composite constraints wherever applicable.
+7. Use proper spaces to make the script more readable.
+*/ 
+
+
+-- Response from ChatGPT -- 
+CREATE DATABASE IF NOT EXISTS beverage_vending_machine
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE beverage_vending_machine;
+
+
+-- ============================================================
+-- TABLE: master_user
+-- Purpose: Stores users who operate, configure, maintain, or use
+--          the beverage vending machine system.
+-- ============================================================
+
+CREATE TABLE master_user (
+    id                  INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each user in the system',
+
+    first_name          VARCHAR(100)     NOT NULL COMMENT 'User first name, for example Rahul, Priya, John',
+    middle_name         VARCHAR(100)     NULL COMMENT 'User middle name, if applicable',
+    last_name           VARCHAR(100)     NULL COMMENT 'User last name or surname',
+    date_of_birth       DATE             NULL COMMENT 'Date of birth of the user, useful for customer profiling if required',
+    email               VARCHAR(255)     NOT NULL COMMENT 'Unique email address of the user, used for login or communication',
+    phone_number        VARCHAR(20)      NULL COMMENT 'Mobile or contact number of the user',
+    address_line_1      VARCHAR(255)     NULL COMMENT 'Primary address line such as house number, street, building',
+    address_line_2      VARCHAR(255)     NULL COMMENT 'Secondary address line such as landmark, area, apartment',
+    city                VARCHAR(100)     NULL COMMENT 'City of residence or operation',
+    state               VARCHAR(100)     NULL COMMENT 'State, province, or region',
+    country             VARCHAR(100)     NULL COMMENT 'Country name',
+    postal_code         VARCHAR(20)      NULL COMMENT 'Postal code or ZIP code',
+    user_type           VARCHAR(50)      NOT NULL DEFAULT 'CUSTOMER' COMMENT 'Type of user such as ADMIN, CUSTOMER, OPERATOR, SERVICE_ENGINEER',
+    preferred_language  VARCHAR(50)      NULL COMMENT 'Preferred user language for display or notification, for example English, Hindi',
+    is_active           TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether the user is active. Values may be expanded in future beyond 0 and 1',
+
+    created_by_id       INT              NOT NULL COMMENT 'Audit Column - User ID who created this user record. Foreign Key to master_user(id)',
+    created_on          DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this user record was created',
+    updated_by_id       INT              NULL COMMENT 'Audit Column - User ID who last updated this user record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on          DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this user record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_master_user_email             (email),
+    UNIQUE KEY uk_master_user_phone_number      (phone_number),
+    KEY idx_master_user_name                    (first_name, last_name),
+    KEY idx_master_user_created_by_id           (created_by_id),
+    KEY idx_master_user_updated_by_id           (updated_by_id),
+
+    CONSTRAINT fk_master_user_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_master_user_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for application users such as customers, admins, operators, and service engineers';
+
+
+-- ============================================================
+-- TABLE: master_beverage
+-- Purpose: Stores beverage definitions such as tea, coffee,
+--          cold coffee, frappe, juice, smoothie, etc.
+-- ============================================================
+
+CREATE TABLE master_beverage (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each beverage',
+
+    beverage_code                   VARCHAR(50)      NOT NULL COMMENT 'Unique business code for beverage, for example TEA, MASALA_TEA, COLD_COFFEE',
+    beverage_name                   VARCHAR(150)     NOT NULL COMMENT 'Display name of the beverage, for example Tea, Masala Tea, Coffee, Cold Coffee',
+    beverage_type                   VARCHAR(100)     NOT NULL COMMENT 'Category or type of beverage, for example HOT, COLD, MILK_BASED, WATER_BASED, FRUIT_BASED',
+    beverage_description            VARCHAR(500)     NULL COMMENT 'Detailed description of the beverage, taste, usage, or serving information',
+    beverage_default_quantity_ml    DECIMAL(10,2)    NOT NULL DEFAULT 150.00 COMMENT 'Default serving quantity of the beverage in milliliters',
+    default_temperature_type        VARCHAR(50)      NULL COMMENT 'Default temperature type such as HOT, COLD, ROOM_TEMPERATURE',
+    default_temperature_celsius     DECIMAL(6,2)     NULL COMMENT 'Default serving temperature in Celsius, if applicable',
+    display_order                   INT              NOT NULL DEFAULT 0 COMMENT 'Display ordering value for showing beverages in the vending machine UI',
+    is_customizable                 TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this beverage can be customized by user. Future values may go beyond 0 and 1',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether the beverage is active and available. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this beverage record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this beverage record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this beverage record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this beverage record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_master_beverage_code              (beverage_code),
+    UNIQUE KEY uk_master_beverage_name_type         (beverage_name, beverage_type),
+    KEY idx_master_beverage_type                    (beverage_type),
+    KEY idx_master_beverage_display_order           (display_order),
+    KEY idx_master_beverage_created_by_id           (created_by_id),
+    KEY idx_master_beverage_updated_by_id           (updated_by_id),
+
+    CONSTRAINT fk_master_beverage_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_master_beverage_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for beverages such as tea, masala tea, coffee, cold coffee, shake, frappe, smoothie, and juice';
+
+
+-- ============================================================
+-- TABLE: master_ingredient
+-- Purpose: Stores ingredients used in beverages such as milk,
+--          water, sugar, ginger, elaichi, honey, lemon, etc.
+-- ============================================================
+
+CREATE TABLE master_ingredient (
+    id                      INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each ingredient',
+
+    ingredient_code         VARCHAR(50)      NOT NULL COMMENT 'Unique business code for ingredient, for example MILK, WATER, SUGAR, GINGER',
+    ingredient_name         VARCHAR(150)     NOT NULL COMMENT 'Display name of the ingredient, for example Milk, Water, Sugar, Ginger, Elaichi',
+    ingredient_category     VARCHAR(100)     NULL COMMENT 'Category of ingredient such as LIQUID, POWDER, SPICE, SWEETENER, FRUIT',
+    default_unit            VARCHAR(30)      NOT NULL DEFAULT 'GM' COMMENT 'Default measurement unit such as ML, GM, PIECE, SPOON',
+    ingredient_description  VARCHAR(500)     NULL COMMENT 'Detailed description of the ingredient and its purpose',
+    is_allergen             TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether ingredient may be treated as allergen. Future values may go beyond 0 and 1',
+    is_active               TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether ingredient is active and available. Future values may go beyond 0 and 1',
+
+    created_by_id           INT              NOT NULL COMMENT 'Audit Column - User ID who created this ingredient record. Foreign Key to master_user(id)',
+    created_on              DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this ingredient record was created',
+    updated_by_id           INT              NULL COMMENT 'Audit Column - User ID who last updated this ingredient record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on              DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this ingredient record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_master_ingredient_code             (ingredient_code),
+    UNIQUE KEY uk_master_ingredient_name             (ingredient_name),
+    KEY idx_master_ingredient_category               (ingredient_category),
+    KEY idx_master_ingredient_created_by_id          (created_by_id),
+    KEY idx_master_ingredient_updated_by_id          (updated_by_id),
+
+    CONSTRAINT fk_master_ingredient_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_master_ingredient_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for beverage ingredients such as elaichi, ginger, sugar, jaggery, milk, water, honey, and lemon';
+
+
+-- ============================================================
+-- TABLE: master_ingredient_subtype
+-- Purpose: Stores reusable ingredient subtypes such as powdered,
+--          cubes, white sugar, brown sugar, sugar free, mishri, etc.
+-- ============================================================
+
+CREATE TABLE master_ingredient_subtype (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each ingredient subtype',
+
+    ingredient_subtype_code         VARCHAR(50)      NOT NULL COMMENT 'Unique business code for ingredient subtype, for example POWDERED, CUBES, WHITE_SUGAR',
+    ingredient_subtype_name         VARCHAR(150)     NOT NULL COMMENT 'Display name of ingredient subtype, for example Powdered, Cubes, White Sugar, Brown Sugar',
+    physical_form                   VARCHAR(100)     NULL COMMENT 'Physical form of subtype such as POWDER, CUBE, CRYSTAL, THREAD, LIQUID',
+    ingredient_subtype_description  VARCHAR(500)     NULL COMMENT 'Detailed description of the subtype and how it may be used',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether ingredient subtype is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this ingredient subtype record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this ingredient subtype record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this ingredient subtype record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this ingredient subtype record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_master_ingredient_subtype_code     (ingredient_subtype_code),
+    UNIQUE KEY uk_master_ingredient_subtype_name     (ingredient_subtype_name),
+    KEY idx_master_ingredient_subtype_form           (physical_form),
+    KEY idx_master_ingredient_subtype_created_by_id  (created_by_id),
+    KEY idx_master_ingredient_subtype_updated_by_id  (updated_by_id),
+
+    CONSTRAINT fk_master_ingredient_subtype_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_master_ingredient_subtype_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for ingredient subtypes such as powdered, cubes, white sugar, brown sugar, sugar free, mishri, thread, and crystal';
+
+
+-- ============================================================
+-- TABLE: master_preparation_method
+-- Purpose: Stores preparation methods such as quick, 1 min boil,
+--          chilled, blended, crushed, fresh, aged, etc.
+-- ============================================================
+
+CREATE TABLE master_preparation_method (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each preparation method',
+
+    preparation_method_code         VARCHAR(50)      NOT NULL COMMENT 'Unique business code for preparation method, for example QUICK, ONE_MIN_BOIL, CHILLED',
+    preparation_method_name         VARCHAR(150)     NOT NULL COMMENT 'Display name of preparation method, for example Quick, 1 Min Boil, Chilled, Blended',
+    preparation_method_description  VARCHAR(500)     NULL COMMENT 'Detailed explanation of how this preparation method works',
+    default_duration_seconds        INT              NULL COMMENT 'Default preparation duration in seconds, if applicable',
+    default_temperature_celsius     DECIMAL(6,2)     NULL COMMENT 'Default preparation temperature in Celsius, if applicable',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether preparation method is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this preparation method record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this preparation method record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this preparation method record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this preparation method record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_master_preparation_method_code     (preparation_method_code),
+    UNIQUE KEY uk_master_preparation_method_name     (preparation_method_name),
+    KEY idx_master_preparation_method_created_by_id  (created_by_id),
+    KEY idx_master_preparation_method_updated_by_id  (updated_by_id),
+
+    CONSTRAINT fk_master_preparation_method_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_master_preparation_method_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for beverage preparation methods such as quick, boil, chilled, blended, crushed, fresh, and aged';
+
+
+-- ============================================================
+-- TABLE: map_user_beverage
+-- Purpose: Maps users to their preferred beverages.
+-- ============================================================
+
+CREATE TABLE map_user_beverage (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each user and beverage mapping row',
+
+    user_id                         INT              NOT NULL COMMENT 'Foreign Key to master_user(id). Identifies the user',
+    beverage_id                     INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Identifies the beverage selected or preferred by user',
+    is_favorite                     TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether this beverage is marked as favorite by the user. Future values may go beyond 0 and 1',
+    preference_rank                 INT              NULL COMMENT 'Preference ranking of beverage for the user, for example 1 for most preferred',
+    preferred_quantity_ml           DECIMAL(10,2)    NULL COMMENT 'User-specific preferred beverage quantity in milliliters',
+    preferred_temperature_type      VARCHAR(50)      NULL COMMENT 'User-specific preferred temperature such as HOT, COLD, ROOM_TEMPERATURE',
+    sugar_level                     VARCHAR(50)      NULL COMMENT 'User-specific sugar preference such as NO_SUGAR, LOW, MEDIUM, HIGH',
+    special_instructions            VARCHAR(500)     NULL COMMENT 'Any special preparation instruction given by user for this beverage',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this user beverage preference is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this mapping record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this mapping record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_map_user_beverage_user_beverage    (user_id, beverage_id),
+    UNIQUE KEY uk_map_user_beverage_user_rank        (user_id, preference_rank),
+    KEY idx_map_user_beverage_user_id                (user_id),
+    KEY idx_map_user_beverage_beverage_id            (beverage_id),
+    KEY idx_map_user_beverage_created_by_id          (created_by_id),
+    KEY idx_map_user_beverage_updated_by_id          (updated_by_id),
+
+    CONSTRAINT fk_map_user_beverage_user
+        FOREIGN KEY (user_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_map_user_beverage_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_map_user_beverage_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_map_user_beverage_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Mapping table between users and beverages, used for favorites, preferences, and custom beverage settings';
+
+
+-- ============================================================
+-- TABLE: map_beverage_ingredient
+-- Purpose: Maps beverages to ingredients required for preparation.
+-- ============================================================
+
+CREATE TABLE map_beverage_ingredient (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each beverage and ingredient mapping row',
+
+    beverage_id                     INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Identifies the beverage',
+    ingredient_id                   INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Identifies the ingredient used in the beverage',
+    default_quantity                DECIMAL(10,3)    NOT NULL DEFAULT 0.000 COMMENT 'Default quantity of this ingredient required for the beverage',
+    quantity_unit                   VARCHAR(30)      NOT NULL COMMENT 'Measurement unit for ingredient quantity such as ML, GM, PIECE, SPOON',
+    sequence_no                     INT              NOT NULL DEFAULT 0 COMMENT 'Sequence in which the ingredient should be added during preparation',
+    is_mandatory                    TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether ingredient is mandatory for this beverage. Future values may go beyond 0 and 1',
+    is_default                      TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether ingredient is included by default. Future values may go beyond 0 and 1',
+    allow_user_customization        TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether user can customize this ingredient. Future values may go beyond 0 and 1',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this beverage ingredient mapping is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this mapping record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this mapping record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_map_beverage_ingredient            (beverage_id, ingredient_id),
+    UNIQUE KEY uk_map_beverage_ingredient_sequence   (beverage_id, sequence_no),
+    KEY idx_map_beverage_ingredient_beverage_id      (beverage_id),
+    KEY idx_map_beverage_ingredient_ingredient_id    (ingredient_id),
+    KEY idx_map_beverage_ingredient_created_by_id    (created_by_id),
+    KEY idx_map_beverage_ingredient_updated_by_id    (updated_by_id),
+
+    CONSTRAINT fk_map_beverage_ingredient_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_map_beverage_ingredient_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_map_beverage_ingredient_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_map_beverage_ingredient_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Mapping table between beverages and ingredients, defining recipe composition, default quantities, and ingredient order';
+
+
+-- ============================================================
+-- TABLE: map_ingredient_ingredient_subtype
+-- Purpose: Maps ingredients to their possible subtypes.
+-- Example: Sugar -> White Sugar, Brown Sugar, Sugar Free, Mishri.
+-- ============================================================
+
+CREATE TABLE map_ingredient_ingredient_subtype (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each ingredient and subtype mapping row',
+
+    ingredient_id                   INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Identifies the main ingredient',
+    ingredient_subtype_id           INT              NOT NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Identifies the subtype of ingredient',
+    display_order                   INT              NOT NULL DEFAULT 0 COMMENT 'Display ordering of subtypes for this ingredient in UI',
+    is_default                      TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether this subtype is default for the ingredient. Future values may go beyond 0 and 1',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this ingredient subtype mapping is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this mapping record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this mapping record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_map_ingredient_subtype             (ingredient_id, ingredient_subtype_id),
+    UNIQUE KEY uk_map_ingredient_subtype_order       (ingredient_id, display_order),
+    KEY idx_map_ingredient_subtype_ingredient_id     (ingredient_id),
+    KEY idx_map_ingredient_subtype_subtype_id        (ingredient_subtype_id),
+    KEY idx_map_ingredient_subtype_created_by_id     (created_by_id),
+    KEY idx_map_ingredient_subtype_updated_by_id     (updated_by_id),
+
+    CONSTRAINT fk_map_ingredient_subtype_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_map_ingredient_subtype_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_map_ingredient_subtype_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_map_ingredient_subtype_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Mapping table between ingredients and ingredient subtypes, for example sugar to white sugar, brown sugar, sugar free, and mishri';
+
+
+-- ============================================================
+-- TABLE: map_beverage_preparation_method
+-- Purpose: Maps beverages to one or more preparation methods.
+-- ============================================================
+
+CREATE TABLE map_beverage_preparation_method (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each beverage and preparation method mapping row',
+
+    beverage_id                     INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Identifies the beverage',
+    preparation_method_id           INT              NOT NULL COMMENT 'Foreign Key to master_preparation_method(id). Identifies preparation method used for beverage',
+    method_sequence_no              INT              NOT NULL DEFAULT 0 COMMENT 'Sequence in which this preparation method should be applied for the beverage',
+    default_duration_seconds        INT              NULL COMMENT 'Beverage-specific default duration for this preparation method in seconds',
+    is_default                      TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether this is the default preparation method for the beverage. Future values may go beyond 0 and 1',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this beverage preparation method mapping is active. Future values may go beyond 0 and 1',
+    remarks                         VARCHAR(500)     NULL COMMENT 'Additional notes about how this preparation method applies to the beverage',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this mapping record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this mapping record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this mapping record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_map_beverage_preparation_method           (beverage_id, preparation_method_id),
+    UNIQUE KEY uk_map_beverage_preparation_method_sequence  (beverage_id, method_sequence_no),
+    KEY idx_map_beverage_preparation_beverage_id            (beverage_id),
+    KEY idx_map_beverage_preparation_method_id              (preparation_method_id),
+    KEY idx_map_beverage_preparation_created_by_id          (created_by_id),
+    KEY idx_map_beverage_preparation_updated_by_id          (updated_by_id),
+
+    CONSTRAINT fk_map_beverage_preparation_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_map_beverage_preparation_method
+        FOREIGN KEY (preparation_method_id)
+        REFERENCES master_preparation_method (id),
+
+    CONSTRAINT fk_map_beverage_preparation_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_map_beverage_preparation_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Mapping table between beverages and preparation methods such as quick, boiled, chilled, blended, crushed, fresh, or aged';
+
+
+
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+INSERT INTO master_user (
+    id,
+    first_name,
+    last_name,
+    email,
+    user_type,
+    is_active,
+    created_by_id
+) VALUES (
+    1,
+    'System',
+    'User',
+    'system@beverage-vending.local',
+    'SYSTEM',
+    1,
+    1
+);
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+
+/* 
+-- Prompt 3 -- 
+I was thinking if I can add something like, user specific ingredient combination for each beverage, which he can keep updating. So everytime, he gets the latest combination, untill he updates it.
+Also, to manage the stocks inside the machine, and inside my warehouse.
+Maybe if I have multiple machines kept at different floors, or buildings,, the user can pour the beverage for his friend.
+These are just rough ideas and maybe totally wrong.
+Below maybe some tables and columns - 
+
+	1. User_Combination_History 
+		- Combo_ID
+		- Milk_QTY -- Default milk quantity that a new user or a normal person intakes.
+		- Tea_QTY
+		- Water_QTY
+		- Sugar_QTY
+		- Coffee_QTY
+		- Honey_QTY
+		- Chia_Seed_QTY
+		- etc etc etc
+		- CREATE_DATE
+		- LAST_USED_DATE
+		- ITERATIONS ----- Number of cups he drank.
+
+	2. Vending Machine Location 
+		- Floor_Number
+		- Machine_Number
+		- Content_ID
+		- Building Name
+		- Area
+		- City
+		- District
+		- State
+		- Country
+		- Pin Code
+		- Phone_Number
+		- Phone_Number_Alternate
+	3.  Machine_stock or content 
+		- ID -- Primary Key
+		- Coffee_QTY - 0 if no coffee served.
+		- Green_Tea_QTY
+		- Black_Tea_QTY
+		- Milk_QTY
+		- Hot_Water_QTY ---- Redundant column. Every machine has hot water
+		- Steam_QTY -------- Redundant column. Every machine has hot water
+	4. master_stock/ current_stock -- 4 --  
+ingredient_id
+current_quantity
+unit_of_measurement
+last_stocked_on
+earliest_expiry_date
+
+
+5. map_default_beverage_ingredient 
+beverage_id
+ingredient_id
+default_quantity
+healthy_flag tinyint -- optional column
+
+Can these also be considered? If so, give updated scripts
+*/
+
+
+
+
+
+-- Reply from ChatGPT -- 
+
+-- Additioonal tables -- 
+USE beverage_vending_machine;
+
+
+-- ============================================================
+-- TABLE: map_default_beverage_ingredient
+-- Purpose:
+-- Stores the default recipe of each beverage.
+-- This table replaces or improves the earlier map_beverage_ingredient table.
+-- Example:
+-- Masala Tea -> Milk 80 ML, Water 70 ML, Tea 5 GM, Ginger 2 GM, Sugar 8 GM.
+-- ============================================================
+
+CREATE TABLE map_default_beverage_ingredient (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each default beverage ingredient mapping row',
+
+    beverage_id                     INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Identifies the beverage for which this default ingredient is configured',
+    ingredient_id                   INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Identifies the ingredient used in the default beverage recipe',
+    ingredient_subtype_id           INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional subtype of the ingredient, for example white sugar, brown sugar, powdered ginger',
+    ingredient_subtype_id_key       INT              GENERATED ALWAYS AS (IFNULL(ingredient_subtype_id, 0)) STORED COMMENT 'Generated helper column used only for unique constraint because MySQL allows multiple NULL values in unique keys',
+
+    default_quantity                DECIMAL(10,3)    NOT NULL DEFAULT 0.000 COMMENT 'Default quantity of the ingredient required for preparing one serving of the beverage',
+    unit_of_measurement             VARCHAR(30)      NOT NULL COMMENT 'Measurement unit for default quantity such as ML, GM, PIECE, SPOON',
+    sequence_no                     INT              NOT NULL DEFAULT 0 COMMENT 'Sequence in which this ingredient should be added while preparing the beverage',
+
+    healthy_flag                    TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether this ingredient configuration is considered healthy, less healthy, optional, or any future custom status',
+    is_mandatory                    TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this ingredient is mandatory for the beverage. Future values may go beyond 0 and 1',
+    is_default                      TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this ingredient is included by default in the beverage recipe. Future values may go beyond 0 and 1',
+    allow_user_customization        TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether user can customize this ingredient quantity or subtype. Future values may go beyond 0 and 1',
+    is_active                       TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this default beverage ingredient mapping is active. Future values may go beyond 0 and 1',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_def_bev_ing                    (beverage_id, ingredient_id, ingredient_subtype_id_key),
+    UNIQUE KEY uk_def_bev_ing_seq                (beverage_id, sequence_no),
+
+    KEY idx_def_bev_ing_beverage_id              (beverage_id),
+    KEY idx_def_bev_ing_ingredient_id            (ingredient_id),
+    KEY idx_def_bev_ing_subtype_id               (ingredient_subtype_id),
+    KEY idx_def_bev_ing_created_by               (created_by_id),
+    KEY idx_def_bev_ing_updated_by               (updated_by_id),
+
+    CONSTRAINT fk_def_bev_ing_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_def_bev_ing_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_def_bev_ing_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_def_bev_ing_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_def_bev_ing_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores default beverage recipes with ingredient, subtype, quantity, unit, health flag, and customization settings';
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: master_vending_machine_location
+-- Purpose:
+-- Stores physical location details where vending machines are installed.
+-- A location can be a building floor, office area, cafeteria, lobby, etc.
+-- ============================================================
+
+CREATE TABLE master_vending_machine_location (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each vending machine location',
+
+    location_code               VARCHAR(50)      NOT NULL COMMENT 'Unique business code for the location, for example BLR_OFFICE_FLOOR_5_PANTRY',
+    building_name               VARCHAR(150)     NOT NULL COMMENT 'Building name where the vending machine is installed',
+    floor_number                VARCHAR(50)      NULL COMMENT 'Floor number or floor name, for example 5, Ground Floor, Basement 1',
+    area                        VARCHAR(150)     NULL COMMENT 'Specific area inside the building, for example cafeteria, lobby, pantry, reception',
+    city                        VARCHAR(100)     NOT NULL COMMENT 'City where the machine location exists',
+    district                    VARCHAR(100)     NULL COMMENT 'District of the machine location',
+    state                       VARCHAR(100)     NULL COMMENT 'State or province of the machine location',
+    country                     VARCHAR(100)     NOT NULL COMMENT 'Country where the machine location exists',
+    pin_code                    VARCHAR(20)      NULL COMMENT 'Postal code or PIN code of the machine location',
+
+    phone_number                VARCHAR(20)      NULL COMMENT 'Primary contact number for this machine location',
+    phone_number_alternate      VARCHAR(20)      NULL COMMENT 'Alternate contact number for this machine location',
+    location_description        VARCHAR(500)     NULL COMMENT 'Additional description to help identify the exact machine location',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this location is active. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this location record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this location record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this location record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this location record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_vm_location_code              (location_code),
+    UNIQUE KEY uk_vm_location_building_floor    (building_name, floor_number, area, city, country),
+
+    KEY idx_vm_location_city                    (city),
+    KEY idx_vm_location_state                   (state),
+    KEY idx_vm_location_created_by              (created_by_id),
+    KEY idx_vm_location_updated_by              (updated_by_id),
+
+    CONSTRAINT fk_vm_location_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_vm_location_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for vending machine installation locations such as building, floor, area, city, state, and country';
+
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: master_vending_machine
+-- Purpose:
+-- Stores vending machine details.
+-- A location can have multiple machines.
+-- Example: Floor 5 Pantry may have Machine 1 and Machine 2.
+-- ============================================================
+
+CREATE TABLE master_vending_machine (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each vending machine',
+
+    machine_code                VARCHAR(50)      NOT NULL COMMENT 'Unique business code for the machine, for example VM_BLR_F5_001',
+    machine_number              VARCHAR(50)      NOT NULL COMMENT 'Machine number visible to users or support team',
+    serial_number               VARCHAR(100)     NULL COMMENT 'Manufacturer serial number of the vending machine',
+    model_number                VARCHAR(100)     NULL COMMENT 'Model number or machine model name',
+    location_id                 INT              NOT NULL COMMENT 'Foreign Key to master_vending_machine_location(id). Identifies where the machine is installed',
+
+    installation_date           DATE             NULL COMMENT 'Date when the machine was installed at the location',
+    last_service_on             DATETIME         NULL COMMENT 'Date and time when the machine was last serviced',
+    next_service_due_on         DATETIME         NULL COMMENT 'Date and time when the next service is due',
+
+    supports_hot_water          TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether machine supports hot water. This is a capability, not stock quantity',
+    supports_steam              TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether machine supports steam. This is a capability, not stock quantity',
+    supports_cold_beverage      TINYINT          NOT NULL DEFAULT 0 COMMENT 'Indicates whether machine supports cold beverages. Future values may go beyond 0 and 1',
+
+    machine_status              VARCHAR(50)      NOT NULL DEFAULT 'ACTIVE' COMMENT 'Current status of machine such as ACTIVE, INACTIVE, UNDER_MAINTENANCE, OUT_OF_SERVICE',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this machine is active in the system. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this machine record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this machine record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this machine record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this machine record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_vm_machine_code                (machine_code),
+    UNIQUE KEY uk_vm_machine_serial              (serial_number),
+    UNIQUE KEY uk_vm_machine_location_number     (location_id, machine_number),
+
+    KEY idx_vm_machine_location_id               (location_id),
+    KEY idx_vm_machine_status                    (machine_status),
+    KEY idx_vm_machine_created_by                (created_by_id),
+    KEY idx_vm_machine_updated_by                (updated_by_id),
+
+    CONSTRAINT fk_vm_machine_location
+        FOREIGN KEY (location_id)
+        REFERENCES master_vending_machine_location (id),
+
+    CONSTRAINT fk_vm_machine_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_vm_machine_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for vending machines installed at different floors, buildings, cities, or office locations';
+
+
+
+
+
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: master_warehouse
+-- Purpose:
+-- Stores warehouses or storage locations where ingredient stock is stored
+-- before being moved into vending machines.
+-- ============================================================
+
+CREATE TABLE master_warehouse (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each warehouse',
+
+    warehouse_code              VARCHAR(50)      NOT NULL COMMENT 'Unique business code for warehouse, for example WH_BLR_MAIN',
+    warehouse_name              VARCHAR(150)     NOT NULL COMMENT 'Display name of the warehouse',
+    address_line_1              VARCHAR(255)     NULL COMMENT 'Primary address line of the warehouse',
+    address_line_2              VARCHAR(255)     NULL COMMENT 'Secondary address line of the warehouse',
+    area                        VARCHAR(150)     NULL COMMENT 'Area or locality where the warehouse is located',
+    city                        VARCHAR(100)     NOT NULL COMMENT 'City where the warehouse is located',
+    district                    VARCHAR(100)     NULL COMMENT 'District where the warehouse is located',
+    state                       VARCHAR(100)     NULL COMMENT 'State or province where the warehouse is located',
+    country                     VARCHAR(100)     NOT NULL COMMENT 'Country where the warehouse is located',
+    pin_code                    VARCHAR(20)      NULL COMMENT 'Postal code or PIN code of the warehouse',
+
+    phone_number                VARCHAR(20)      NULL COMMENT 'Primary warehouse contact number',
+    phone_number_alternate      VARCHAR(20)      NULL COMMENT 'Alternate warehouse contact number',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether warehouse is active. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this warehouse record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this warehouse record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this warehouse record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this warehouse record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_warehouse_code                (warehouse_code),
+    UNIQUE KEY uk_warehouse_name_city           (warehouse_name, city, country),
+
+    KEY idx_warehouse_city                      (city),
+    KEY idx_warehouse_created_by                (created_by_id),
+    KEY idx_warehouse_updated_by                (updated_by_id),
+
+    CONSTRAINT fk_warehouse_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_warehouse_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Master table for warehouses that store ingredients before stock is moved to vending machines';
+
+
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: map_machine_ingredient_stock
+-- Purpose:
+-- Stores current ingredient stock inside each vending machine.
+-- This avoids columns like Coffee_QTY, Milk_QTY, Sugar_QTY.
+-- ============================================================
+
+CREATE TABLE map_machine_ingredient_stock (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each machine ingredient stock row',
+
+    machine_id                  INT              NOT NULL COMMENT 'Foreign Key to master_vending_machine(id). Identifies the vending machine where stock is stored',
+    ingredient_id               INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Identifies the ingredient stored in the machine',
+    ingredient_subtype_id       INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional subtype such as white sugar, brown sugar, powdered coffee',
+    ingredient_subtype_id_key   INT              GENERATED ALWAYS AS (IFNULL(ingredient_subtype_id, 0)) STORED COMMENT 'Generated helper column used only for unique constraint because MySQL allows multiple NULL values in unique keys',
+
+    current_quantity            DECIMAL(12,3)    NOT NULL DEFAULT 0.000 COMMENT 'Current available quantity of ingredient inside the vending machine',
+    unit_of_measurement         VARCHAR(30)      NOT NULL COMMENT 'Unit of stock quantity such as ML, GM, PIECE, PACKET',
+    minimum_threshold_quantity  DECIMAL(12,3)    NOT NULL DEFAULT 0.000 COMMENT 'Minimum stock level below which refill alert should be generated',
+    maximum_capacity_quantity   DECIMAL(12,3)    NULL COMMENT 'Maximum capacity of this ingredient container inside the machine',
+
+    last_stocked_on             DATETIME         NULL COMMENT 'Date and time when this machine ingredient was last refilled',
+    earliest_expiry_date        DATE             NULL COMMENT 'Earliest expiry date among available batches of this ingredient inside the machine',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this machine stock row is active. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this stock record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this stock record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_machine_stock_ing             (machine_id, ingredient_id, ingredient_subtype_id_key),
+
+    KEY idx_machine_stock_machine_id            (machine_id),
+    KEY idx_machine_stock_ingredient_id         (ingredient_id),
+    KEY idx_machine_stock_subtype_id            (ingredient_subtype_id),
+    KEY idx_machine_stock_expiry                (earliest_expiry_date),
+    KEY idx_machine_stock_created_by            (created_by_id),
+    KEY idx_machine_stock_updated_by            (updated_by_id),
+
+    CONSTRAINT fk_machine_stock_machine
+        FOREIGN KEY (machine_id)
+        REFERENCES master_vending_machine (id),
+
+    CONSTRAINT fk_machine_stock_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_machine_stock_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_machine_stock_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_machine_stock_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores current ingredient stock available inside each vending machine';
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: map_warehouse_ingredient_stock
+-- Purpose:
+-- Stores current ingredient stock inside warehouses.
+-- ============================================================
+
+CREATE TABLE map_warehouse_ingredient_stock (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each warehouse ingredient stock row',
+
+    warehouse_id                INT              NOT NULL COMMENT 'Foreign Key to master_warehouse(id). Identifies the warehouse where stock is stored',
+    ingredient_id               INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Identifies the ingredient stored in the warehouse',
+    ingredient_subtype_id       INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional subtype such as brown sugar, powdered tea, coffee beans',
+    ingredient_subtype_id_key   INT              GENERATED ALWAYS AS (IFNULL(ingredient_subtype_id, 0)) STORED COMMENT 'Generated helper column used only for unique constraint because MySQL allows multiple NULL values in unique keys',
+
+    current_quantity            DECIMAL(12,3)    NOT NULL DEFAULT 0.000 COMMENT 'Current available quantity of ingredient inside the warehouse',
+    unit_of_measurement         VARCHAR(30)      NOT NULL COMMENT 'Unit of stock quantity such as ML, GM, KG, LITRE, PIECE, PACKET',
+    minimum_threshold_quantity  DECIMAL(12,3)    NOT NULL DEFAULT 0.000 COMMENT 'Minimum stock level below which warehouse restock alert should be generated',
+
+    last_stocked_on             DATETIME         NULL COMMENT 'Date and time when this warehouse ingredient was last stocked',
+    earliest_expiry_date        DATE             NULL COMMENT 'Earliest expiry date among available batches of this ingredient inside the warehouse',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this warehouse stock row is active. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this stock record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this stock record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_warehouse_stock_ing            (warehouse_id, ingredient_id, ingredient_subtype_id_key),
+
+    KEY idx_warehouse_stock_warehouse_id         (warehouse_id),
+    KEY idx_warehouse_stock_ingredient_id        (ingredient_id),
+    KEY idx_warehouse_stock_subtype_id           (ingredient_subtype_id),
+    KEY idx_warehouse_stock_expiry               (earliest_expiry_date),
+    KEY idx_warehouse_stock_created_by           (created_by_id),
+    KEY idx_warehouse_stock_updated_by           (updated_by_id),
+
+    CONSTRAINT fk_warehouse_stock_warehouse
+        FOREIGN KEY (warehouse_id)
+        REFERENCES master_warehouse (id),
+
+    CONSTRAINT fk_warehouse_stock_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_warehouse_stock_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_warehouse_stock_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_warehouse_stock_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores current ingredient stock available inside each warehouse';
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: txn_stock_movement_history
+-- Purpose:
+-- Stores stock movement history.
+-- Examples:
+-- Supplier to warehouse, warehouse to machine, machine consumption,
+-- wastage, expiry adjustment, manual correction.
+-- ============================================================
+
+CREATE TABLE txn_stock_movement_history (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each stock movement transaction',
+
+    movement_reference_no       VARCHAR(100)     NOT NULL COMMENT 'Unique stock movement reference number generated by application',
+    movement_type               VARCHAR(50)      NOT NULL COMMENT 'Type of movement such as PURCHASE_IN, WAREHOUSE_TO_MACHINE, MACHINE_CONSUMPTION, WASTAGE, EXPIRY, MANUAL_ADJUSTMENT',
+
+    source_warehouse_id         INT              NULL COMMENT 'Foreign Key to master_warehouse(id). Source warehouse if stock moved from warehouse',
+    source_machine_id           INT              NULL COMMENT 'Foreign Key to master_vending_machine(id). Source machine if stock moved from machine',
+    destination_warehouse_id    INT              NULL COMMENT 'Foreign Key to master_warehouse(id). Destination warehouse if stock moved to warehouse',
+    destination_machine_id      INT              NULL COMMENT 'Foreign Key to master_vending_machine(id). Destination machine if stock moved to machine',
+
+    ingredient_id               INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Ingredient involved in the stock movement',
+    ingredient_subtype_id       INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional ingredient subtype involved in stock movement',
+
+    quantity                    DECIMAL(12,3)    NOT NULL COMMENT 'Quantity moved, consumed, wasted, expired, or adjusted',
+    unit_of_measurement         VARCHAR(30)      NOT NULL COMMENT 'Unit of movement quantity such as ML, GM, KG, LITRE, PIECE, PACKET',
+    batch_number                VARCHAR(100)     NULL COMMENT 'Batch number of ingredient stock if batch tracking is available',
+    expiry_date                 DATE             NULL COMMENT 'Expiry date of the stock batch involved in this movement',
+
+    movement_on                 DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Date and time when stock movement happened',
+    remarks                     VARCHAR(500)     NULL COMMENT 'Additional remarks or reason for the stock movement',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this stock movement record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock movement record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this stock movement record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this stock movement record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_stock_move_ref                 (movement_reference_no),
+
+    KEY idx_stock_move_type                      (movement_type),
+    KEY idx_stock_move_on                        (movement_on),
+    KEY idx_stock_move_src_wh                    (source_warehouse_id),
+    KEY idx_stock_move_src_machine               (source_machine_id),
+    KEY idx_stock_move_dest_wh                   (destination_warehouse_id),
+    KEY idx_stock_move_dest_machine              (destination_machine_id),
+    KEY idx_stock_move_ingredient                (ingredient_id),
+    KEY idx_stock_move_subtype                   (ingredient_subtype_id),
+    KEY idx_stock_move_created_by                (created_by_id),
+    KEY idx_stock_move_updated_by                (updated_by_id),
+
+    CONSTRAINT fk_stock_move_src_wh
+        FOREIGN KEY (source_warehouse_id)
+        REFERENCES master_warehouse (id),
+
+    CONSTRAINT fk_stock_move_src_machine
+        FOREIGN KEY (source_machine_id)
+        REFERENCES master_vending_machine (id),
+
+    CONSTRAINT fk_stock_move_dest_wh
+        FOREIGN KEY (destination_warehouse_id)
+        REFERENCES master_warehouse (id),
+
+    CONSTRAINT fk_stock_move_dest_machine
+        FOREIGN KEY (destination_machine_id)
+        REFERENCES master_vending_machine (id),
+
+    CONSTRAINT fk_stock_move_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_stock_move_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_stock_move_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_stock_move_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Transaction table for tracking ingredient stock movement across warehouse, machines, consumption, wastage, expiry, and adjustments';
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: master_user_beverage_combination
+-- Purpose:
+-- Stores user-specific beverage combinations.
+-- One user can have many saved combinations for the same beverage.
+-- Only one combination should be current for a user and beverage.
+-- ============================================================
+
+CREATE TABLE master_user_beverage_combination (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each user beverage combination',
+
+    user_id                     INT              NOT NULL COMMENT 'Foreign Key to master_user(id). User who owns this beverage combination',
+    beverage_id                 INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Beverage for which this custom combination is created',
+
+    combination_name            VARCHAR(150)     NULL COMMENT 'User-defined name of the combination, for example My Strong Tea, Less Sugar Coffee',
+    combination_version_no      INT              NOT NULL DEFAULT 1 COMMENT 'Version number of the user beverage combination. Incremented whenever user creates a new updated combination',
+    is_current                  TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this is the current active combination for the user and beverage. Future values may go beyond 0 and 1',
+    current_combo_key           INT              GENERATED ALWAYS AS (CASE WHEN is_current = 1 THEN 1 ELSE NULL END) STORED COMMENT 'Generated helper column to allow only one current combination per user and beverage',
+
+    last_used_on                DATETIME         NULL COMMENT 'Date and time when this combination was last used to prepare a beverage',
+    iterations                  INT              NOT NULL DEFAULT 0 COMMENT 'Number of cups prepared using this combination',
+    notes                       VARCHAR(500)     NULL COMMENT 'User notes or system notes about this beverage combination',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this combination is active. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this combination record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this combination record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this combination record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this combination record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_user_bev_combo_version         (user_id, beverage_id, combination_version_no),
+    UNIQUE KEY uk_user_bev_combo_current         (user_id, beverage_id, current_combo_key),
+
+    KEY idx_user_bev_combo_user_id               (user_id),
+    KEY idx_user_bev_combo_beverage_id           (beverage_id),
+    KEY idx_user_bev_combo_current_flag          (is_current),
+    KEY idx_user_bev_combo_last_used             (last_used_on),
+    KEY idx_user_bev_combo_created_by            (created_by_id),
+    KEY idx_user_bev_combo_updated_by            (updated_by_id),
+
+    CONSTRAINT fk_user_bev_combo_user
+        FOREIGN KEY (user_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_user_bev_combo_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_user_bev_combo_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_user_bev_combo_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores user-specific beverage combinations with versioning, current combination flag, last used date, and usage count';
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: map_user_combo_ingredient
+-- Purpose:
+-- Stores ingredient-level details for each user beverage combination.
+-- Example:
+-- Combo 101 -> Milk 90 ML, Water 50 ML, Tea 6 GM, Sugar 3 GM.
+-- ============================================================
+
+CREATE TABLE map_user_combo_ingredient (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each user combination ingredient row',
+
+    combo_id                    INT              NOT NULL COMMENT 'Foreign Key to master_user_beverage_combination(id). Identifies the user beverage combination',
+    ingredient_id               INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Ingredient used in this custom combination',
+    ingredient_subtype_id       INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional subtype selected by user, for example brown sugar or sugar free',
+    ingredient_subtype_id_key   INT              GENERATED ALWAYS AS (IFNULL(ingredient_subtype_id, 0)) STORED COMMENT 'Generated helper column used only for unique constraint because MySQL allows multiple NULL values in unique keys',
+
+    quantity                    DECIMAL(10,3)    NOT NULL DEFAULT 0.000 COMMENT 'User-specific quantity of this ingredient for the beverage combination',
+    unit_of_measurement         VARCHAR(30)      NOT NULL COMMENT 'Measurement unit for ingredient quantity such as ML, GM, PIECE, SPOON',
+    sequence_no                 INT              NOT NULL DEFAULT 0 COMMENT 'Sequence in which this ingredient should be added while preparing the user-specific beverage',
+    is_active                   TINYINT          NOT NULL DEFAULT 1 COMMENT 'Indicates whether this ingredient row is active for the combination. Future values may go beyond 0 and 1',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this combination ingredient record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this combination ingredient record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this combination ingredient record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this combination ingredient record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_user_combo_ing                 (combo_id, ingredient_id, ingredient_subtype_id_key),
+    UNIQUE KEY uk_user_combo_ing_seq             (combo_id, sequence_no),
+
+    KEY idx_user_combo_ing_combo_id              (combo_id),
+    KEY idx_user_combo_ing_ingredient_id         (ingredient_id),
+    KEY idx_user_combo_ing_subtype_id            (ingredient_subtype_id),
+    KEY idx_user_combo_ing_created_by            (created_by_id),
+    KEY idx_user_combo_ing_updated_by            (updated_by_id),
+
+    CONSTRAINT fk_user_combo_ing_combo
+        FOREIGN KEY (combo_id)
+        REFERENCES master_user_beverage_combination (id),
+
+    CONSTRAINT fk_user_combo_ing_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_user_combo_ing_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_user_combo_ing_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_user_combo_ing_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores ingredient quantities and subtypes for each user-specific beverage combination';
+
+
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: txn_beverage_serving
+-- Purpose:
+-- Stores every beverage served from a machine.
+-- Supports:
+-- 1. User serving for self.
+-- 2. User serving for another registered user.
+-- 3. User serving for a friend who is not registered.
+-- ============================================================
+
+CREATE TABLE txn_beverage_serving (
+    id                              INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each beverage serving transaction',
+
+    serving_reference_no            VARCHAR(100)     NOT NULL COMMENT 'Unique reference number generated by application for each beverage serving transaction',
+
+    machine_id                      INT              NOT NULL COMMENT 'Foreign Key to master_vending_machine(id). Machine from which beverage was served',
+    requested_by_user_id            INT              NOT NULL COMMENT 'Foreign Key to master_user(id). User who requested or paid for the beverage',
+    served_for_user_id              INT              NULL COMMENT 'Foreign Key to master_user(id). Registered user for whom beverage was served, if different from requester',
+
+    served_for_guest_name           VARCHAR(150)     NULL COMMENT 'Name of guest or friend if beverage is served for a non-registered person',
+    served_for_guest_phone          VARCHAR(20)      NULL COMMENT 'Phone number of guest or friend if available',
+    served_for_guest_email          VARCHAR(255)     NULL COMMENT 'Email of guest or friend if available',
+
+    beverage_id                     INT              NOT NULL COMMENT 'Foreign Key to master_beverage(id). Beverage that was served',
+    combo_id                        INT              NULL COMMENT 'Foreign Key to master_user_beverage_combination(id). User-specific combination used for serving, if applicable',
+
+    serving_quantity_ml             DECIMAL(10,2)    NULL COMMENT 'Final beverage serving quantity in milliliters',
+    serving_status                  VARCHAR(50)      NOT NULL DEFAULT 'REQUESTED' COMMENT 'Serving status such as REQUESTED, PREPARING, COMPLETED, FAILED, CANCELLED',
+    served_on                       DATETIME         NULL COMMENT 'Date and time when beverage serving was completed',
+    failure_reason                  VARCHAR(500)     NULL COMMENT 'Failure reason if beverage could not be served',
+    remarks                         VARCHAR(500)     NULL COMMENT 'Additional notes about this beverage serving transaction',
+
+    created_by_id                   INT              NOT NULL COMMENT 'Audit Column - User ID who created this serving record. Foreign Key to master_user(id)',
+    created_on                      DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this serving record was created',
+    updated_by_id                   INT              NULL COMMENT 'Audit Column - User ID who last updated this serving record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                      DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this serving record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_serving_reference_no              (serving_reference_no),
+
+    KEY idx_serving_machine_id                      (machine_id),
+    KEY idx_serving_requested_by                    (requested_by_user_id),
+    KEY idx_serving_for_user                        (served_for_user_id),
+    KEY idx_serving_beverage_id                     (beverage_id),
+    KEY idx_serving_combo_id                        (combo_id),
+    KEY idx_serving_status                          (serving_status),
+    KEY idx_serving_served_on                       (served_on),
+    KEY idx_serving_created_by                      (created_by_id),
+    KEY idx_serving_updated_by                      (updated_by_id),
+
+    CONSTRAINT fk_serving_machine
+        FOREIGN KEY (machine_id)
+        REFERENCES master_vending_machine (id),
+
+    CONSTRAINT fk_serving_requested_by
+        FOREIGN KEY (requested_by_user_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_serving_for_user
+        FOREIGN KEY (served_for_user_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_serving_beverage
+        FOREIGN KEY (beverage_id)
+        REFERENCES master_beverage (id),
+
+    CONSTRAINT fk_serving_combo
+        FOREIGN KEY (combo_id)
+        REFERENCES master_user_beverage_combination (id),
+
+    CONSTRAINT fk_serving_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_serving_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Transaction table storing every beverage served from vending machines, including self orders and orders for friends or guests';
+
+
+
+
+
+
+-- ============================================================
+-- TABLE: txn_beverage_serving_ingredient
+-- Purpose:
+-- Stores actual ingredient quantity consumed for each beverage serving.
+-- This is important because user combinations may change in future,
+-- but historical serving records should remain unchanged.
+-- ============================================================
+
+CREATE TABLE txn_beverage_serving_ingredient (
+    id                          INT              NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key - Unique ID for each served beverage ingredient detail row',
+
+    serving_id                  INT              NOT NULL COMMENT 'Foreign Key to txn_beverage_serving(id). Identifies the beverage serving transaction',
+    ingredient_id               INT              NOT NULL COMMENT 'Foreign Key to master_ingredient(id). Ingredient consumed during this serving',
+    ingredient_subtype_id       INT              NULL COMMENT 'Foreign Key to master_ingredient_subtype(id). Optional subtype consumed during this serving',
+    ingredient_subtype_id_key   INT              GENERATED ALWAYS AS (IFNULL(ingredient_subtype_id, 0)) STORED COMMENT 'Generated helper column used only for unique constraint because MySQL allows multiple NULL values in unique keys',
+
+    consumed_quantity           DECIMAL(10,3)    NOT NULL DEFAULT 0.000 COMMENT 'Actual quantity of ingredient consumed for this beverage serving',
+    unit_of_measurement         VARCHAR(30)      NOT NULL COMMENT 'Measurement unit of consumed quantity such as ML, GM, PIECE, SPOON',
+    machine_stock_id            INT              NULL COMMENT 'Foreign Key to map_machine_ingredient_stock(id). Stock row from which this ingredient was consumed, if tracked',
+    remarks                     VARCHAR(500)     NULL COMMENT 'Additional notes about this ingredient consumption',
+
+    created_by_id               INT              NOT NULL COMMENT 'Audit Column - User ID who created this serving ingredient record. Foreign Key to master_user(id)',
+    created_on                  DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this serving ingredient record was created',
+    updated_by_id               INT              NULL COMMENT 'Audit Column - User ID who last updated this serving ingredient record. Foreign Key to master_user(id). Can be null for first insert',
+    updated_on                  DATETIME         NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Audit Column - Date and time when this serving ingredient record was last updated. Can be null for first insert',
+
+    UNIQUE KEY uk_serving_ing                    (serving_id, ingredient_id, ingredient_subtype_id_key),
+
+    KEY idx_serving_ing_serving_id               (serving_id),
+    KEY idx_serving_ing_ingredient_id            (ingredient_id),
+    KEY idx_serving_ing_subtype_id               (ingredient_subtype_id),
+    KEY idx_serving_ing_machine_stock            (machine_stock_id),
+    KEY idx_serving_ing_created_by               (created_by_id),
+    KEY idx_serving_ing_updated_by               (updated_by_id),
+
+    CONSTRAINT fk_serving_ing_serving
+        FOREIGN KEY (serving_id)
+        REFERENCES txn_beverage_serving (id),
+
+    CONSTRAINT fk_serving_ing_ingredient
+        FOREIGN KEY (ingredient_id)
+        REFERENCES master_ingredient (id),
+
+    CONSTRAINT fk_serving_ing_subtype
+        FOREIGN KEY (ingredient_subtype_id)
+        REFERENCES master_ingredient_subtype (id),
+
+    CONSTRAINT fk_serving_ing_machine_stock
+        FOREIGN KEY (machine_stock_id)
+        REFERENCES map_machine_ingredient_stock (id),
+
+    CONSTRAINT fk_serving_ing_created_by
+        FOREIGN KEY (created_by_id)
+        REFERENCES master_user (id),
+
+    CONSTRAINT fk_serving_ing_updated_by
+        FOREIGN KEY (updated_by_id)
+        REFERENCES master_user (id)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Stores actual ingredient consumption snapshot for every beverage serving transaction';
+
+
+/*
+-- How this design handles your ideas
+	-- 1 -- For latest user combination, use:
+		SELECT  c.*
+		FROM    master_user_beverage_combination c
+		WHERE   c.user_id     = ?
+		AND     c.beverage_id = ?
+		AND     c.is_current  = 1
+		AND     c.is_active   = 1;
+
+	-- 2 -- Then fetch its ingredients:
+		SELECT  ci.*
+		FROM    map_user_combo_ingredient ci
+		WHERE   ci.combo_id   = ?
+		AND     ci.is_active  = 1
+		ORDER BY ci.sequence_no;
+
+	- When user updates his beverage combination, insert a new row in master_user_beverage_combination with incremented combination_version_no, set old row is_current = 0, and new row is_current = 1.
+
+
+		For machine stock, use:
+			map_machine_ingredient_stock
+
+		For warehouse stock, use:
+			map_warehouse_ingredient_stock
+
+		For stock movement history, use:
+			txn_stock_movement_history
+
+		For pouring beverage for a friend, use:
+			txn_beverage_serving
+
+
+	- If the friend is a registered user, store served_for_user_id.
+	- If the friend is not registered, store:
+		served_for_guest_name
+		served_for_guest_phone
+		served_for_guest_email
+
+	- The most important improvement is this: 
+		- do not store stock or combination as fixed ingredient columns. Keep ingredients row-wise using ingredient_id, because your product will keep evolving.
+
+*/
